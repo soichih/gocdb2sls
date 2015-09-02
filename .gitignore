@@ -1,0 +1,5 @@
+certs
+config.js
+node_modules
+debug
+*.log
