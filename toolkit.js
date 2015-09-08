@@ -29,12 +29,13 @@ exports.getInfo = function(endpoint, cb) {
     toolkit_url += "?format=json";
 
     //load toolkit info
-    logger.debug("loading toolkit info: "+toolkit_url); 
+    logger.info("loading toolkit info: "+toolkit_url); 
     var opts = Object.create(config.toolkit);
     opts.url = toolkit_url;
     request.get(opts, function(err, msg, json) {
         if(err) return cb(err);
         try {
+            //v3.3 doesn't provide ?format=json output.. so the parsing will fail when it tries to parse the HTML
             var info = JSON.parse(json);
             cb(null, info);
         } catch(err) {

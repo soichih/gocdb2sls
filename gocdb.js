@@ -67,7 +67,7 @@ exports.load = function(cb) {
 */
 
 function loadSites(cb) {
-    logger.debug("loading gocdb sites");
+    logger.debug("loading gocdb sites from "+config.site_xml.url);
     request.get(config.site_xml, function(err, msg, xml) {
         if(err) return cb(err);
         parser.parseString(xml, function(err, sites) {
