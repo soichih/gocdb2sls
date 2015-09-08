@@ -212,7 +212,6 @@ function processEndpoint(endpoint, cb) {
         }, done);
     }); 
     
-    //now execute requests in series
     async.series(tasks, cb);
 }
 

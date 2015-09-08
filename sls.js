@@ -55,16 +55,10 @@ exports.getServiceRecord = function(key, cb) {
 
 exports.postRecord = function(rec, cb) {
     var url = config.sls.url+'/lookup/records';
-    //logger.debug("posting sls record");
-    //console.log(JSON.stringify(rec, null, 4));
-    //request.debug = true;
     request.post({
         url: url,
         json: rec,
-        //headers: { "accept": "application/json" }
     }, function(err, res, newrec) {
-        //request.debug = false;
-        //console.dir(body);
         if(err) return cb(err);
         if(res.statusCode == 200)  {
             cb(null, newrec);
@@ -76,7 +70,6 @@ exports.postRecord = function(rec, cb) {
 
 exports.renewRecord = function(uri, cb) {
     var url = config.sls.url+'/'+uri;
-    //logger.debug("renewing record:"+url);
     request.post({
         url: url
     }, function(err, res, body) {
@@ -91,7 +84,6 @@ exports.renewRecord = function(uri, cb) {
 
 exports.removeRecord = function(uri, cb) {
     var url = config.sls.url+"/"+uri;
-    //logger.debug("deleting record:"+url);
     request.del({
         url: url
     }, function(err, res, body) {

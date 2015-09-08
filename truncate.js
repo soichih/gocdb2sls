@@ -36,8 +36,3 @@ sls.getRecords('lookup/records', function(err, recs) {
     });
 });
 
-/*
-sls.removeRecord('lookup/records', function(err) {
-    if(err) throw err;    
-});
-*/

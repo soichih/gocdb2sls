@@ -17,6 +17,7 @@ var gocdb = require('./gocdb');
 var toolkit = require('./toolkit');
 var sls = require('./sls');
 
+//globals
 var parser = new xml2js.Parser();
 var endpoints_cache_dir = config.gocdb2sls.cache_dir+"/endpoints";
 
@@ -27,7 +28,6 @@ gocdb.loadSites(function(err) {
     fs.exists(endpoints_cache_dir, function (exists) {
         if(!exists) fs.mkdirSync(endpoints_cache_dir);
         async.eachSeries(config.endpoint_xmls, function(endpoint_xml, next) {
-            //logger.info("Processing "+endpoint_xml.url);
             processEndpointXML(endpoint_xml, function(err) {
                 if(err) logger.error(err); //continue
                 next();
@@ -42,7 +42,6 @@ function processEndpointXML(endpoint_xml, cb) {
     logger.debug("loading gocdb endpoints xml from "+endpoint_xml.url);
     request.get(endpoint_xml, function(err, msg, xml) {
         if(err) return cb(err);
-        //logger.debug("parsing gocdb endpoints xml");
         parser.parseString(xml, function(err, endpoints) {
             if(err) return cb(err);
 
@@ -52,7 +51,6 @@ function processEndpointXML(endpoint_xml, cb) {
                 processEndpoint(endpoint, function(err) {
                     if(err) {
                         //continue to next endpoint
-                        console.dir(err);
                         logger.error(err); 
                         failed++;
                     }
