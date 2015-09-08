@@ -149,7 +149,7 @@ gocdb2sls works in 2 steps. First step is to cache information from GOCDB and ea
 ./cache.js
 ```
 
-This will store endpoint information under the configured directory (see exports.gocdb2sls in your config). It could take 10 - 30 minutes.
+This will store endpoint information under the configured directory (see exports.gocdb2sls in your config). It could take 20 - 40 minutes.
 
 Then, truncate & load data to sLS
 
@@ -158,7 +158,7 @@ Then, truncate & load data to sLS
 ./load.js
 ```
 
-If everythin goes well, you should now be able to view data stored in your sLS server. At URL such as http://localhost:8090/lookup/records
+If everything goes well, you should now be able to view data stored in your sLS server. At URL such as http://localhost:8090/lookup/records
 
 5) Setup cron
 
@@ -169,12 +169,11 @@ If above step worked, then you should run both steps via cron
 ```
 GOCDB2SLS_DIR=/somewhere
 0 * * * * someone cd $GOCDB2SLS_DIR && ./cache.js >> gocdb2sls.log
-30 * * * * someone cd $GOCDB2SLS_DIR && ./truncate.js && ./load.js >> gocdb2sls.log
+40 * * * * someone cd $GOCDB2SLS_DIR && ./truncate.js && ./load.js >> gocdb2sls.log
+
+#Remove old endpoint that's no longer getting cached (removed?)
+55 0 * * * someone cd /usr/local/gocdb2sls-cache && find -mtime +1 -print -exec /bin/rm {} \;
 ```
-
-6) Install logrotate on the cache directory
-
-Install a logrotate for cache directory to remove old sites. In order to handle temporary tookit outages, you should let old cache stay for a while but leaving them too long will cause removed instances to stay in the sls longer.
 
 # TODOs
 
@@ -182,4 +181,7 @@ Until toolkit provides me the uuid for each host, meshconfig admin can't identif
 meshconfig.. for each record type, I will need to implement getKey() function. if gocdb-key is present, it uses it. If uuid is present,
 it uses it.. if that's not present, then maybe use composite of certain fields? During the query phase, however, I need to know
 which method was used, so key value needs to be prefixed by "gocdb:" or "uuid:" or "comp:".. and do lookup on appropriate fields
+
+Right now, endpoint removed in GOCDB will take up to 24 hours (based on cron) to be removed from the sLS - we should update cache.js to 
+automatically remove any endpoint that no longer is registered immediately.
 
