@@ -62,8 +62,10 @@ function createHostRecord(endpoint) {
         rec["host-administrators"] =  [ endpoint._contactrec.uri ];
     }
 
-    //TODO - I don't know how to load the UUID for >3.5 instances, but let's compose it from the GOCDB KEY
-    rec["client-uuid"] = [ endpoint.$.PRIMARY_KEY ];
+    //use info.client_uuid or if not available (for <3.5) use GOCDB primary key
+    var key = endpoint.$.PRIMARY_KEY;
+    if(info["client-uuid"]) key = info["client-uuid"];
+    rec["client-uuid"] = [ key ];
 
     return rec;
 }
@@ -166,8 +168,11 @@ function createServiceRecord(endpoint, service) {
         break;
     }
     
-    //TODO - I don't know how to load the UUID for >3.5 instances, but let's compose it from the GOCDB KEY
-    rec["client-uuid"] = [ endpoint.$.PRIMARY_KEY+"."+service.name ];
+    //use info.client_uuid or if not available (for <3.5) use GOCDB primary key
+    //service client-uuid is just host uuid.. so let's add service name to be a bit more unique
+    var key = endpoint.$.PRIMARY_KEY;
+    if(info["client-uuid"]) key = info["client-uuid"];
+    rec["client-uuid"] = [ key+"."+service.name ];
 
     setLocationFields(rec, endpoint);
     return rec;
