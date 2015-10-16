@@ -136,8 +136,13 @@ function createServiceRecord(endpoint, service) {
     * "tcp://perfsonar-bw.cern.ch:3001"
     * ],
     */
-    if(service.addresses) rec["service-locator"] = [ service.addresses[service.addresses.length-1] ];
-    //if(endpoint._contactrec) rec["service-administrators"] =  [ endpoint._contactrec.uri ];
+    if(service.addresses && service.addresses.length > 0) rec["service-locator"] = [ service.addresses[service.addresses.length-1] ];
+    else {
+        //michael says addresses isn't really reliable.. using HOSTNAME temporarily
+        //in the future, maybe I should construct the full (like "http://perfsonar.pnpi.nw.ru:7123/") info?
+        rec["service-locator"] = "something://"+endpoint.HOSTNAME+":12345";
+    }
+    
     if(endpoint._contactrec) {
         rec["service-administrators"] =  [ endpoint._contactrec.uri ];
     }
@@ -163,7 +168,7 @@ function createServiceRecord(endpoint, service) {
     case "npad":
         rec["psservice-eventtypes"] = [ "http://ggf.org/ns/nmwg/tools/npad/1.0" ];
         break;
-    case "npad":
+    case "ndt":
         rec["psservice-eventtypes"] = [ "http://ggf.org/ns/nmwg/tools/ndt/1.0" ];
         break;
     }
