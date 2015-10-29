@@ -138,9 +138,9 @@ function createServiceRecord(endpoint, service) {
     */
     if(service.addresses && service.addresses.length > 0) rec["service-locator"] = [ service.addresses[service.addresses.length-1] ];
     else {
-        //michael says addresses isn't really reliable.. using HOSTNAME temporarily
-        //in the future, maybe I should construct the full (like "http://perfsonar.pnpi.nw.ru:7123/") info?
-        rec["service-locator"] = "something://"+endpoint.HOSTNAME+":12345";
+        //michael says addresses isn't really reliable.. using HOSTNAME/daemon_port
+        rec["service-locator"] = "tcp://"+endpoint.HOSTNAME;
+        if(service.daemon_port) rec["service-locator"] +=":"+service.daemon_port;
     }
     
     if(endpoint._contactrec) {
@@ -174,10 +174,16 @@ function createServiceRecord(endpoint, service) {
     }
     
     //use info.client_uuid or if not available (for <3.5) use GOCDB primary key
-    //service client-uuid is just host uuid.. so let's add service name to be a bit more unique
     var key = endpoint.$.PRIMARY_KEY;
-    if(info["client-uuid"]) key = info["client-uuid"];
-    rec["client-uuid"] = [ key+"."+service.name ];
+    if(info["ls_client_uuid"]) {
+        key = info["ls_client_uuid"];
+    } else {
+        logger.warn("ls_client_uuid not set in toolkit info for "+endpoint.HOSTNAME+" -- using GOCDB primary key instead:"+endpoint.$.PRIMARY_KEY);
+        //TODO - when this site gets upgraded and publish client_uuid, then we will have duplicate host entries...
+    }    
+    //
+    //service client-uuid is just host uuid.. to make it unique across different services within a host, add service-type
+    rec["client-uuid"] = [ key ];
 
     setLocationFields(rec, endpoint);
     return rec;
@@ -212,6 +218,7 @@ function processEndpoint(endpoint, cb) {
         //register serivce in parallel
         async.eachLimit(endpoint._info.services, 10, function(service, next) {
             if(!service.is_running) return next(null);
+            if(service.name == "regular_testing") return next(null); //don't need to register regular_testing service
             var servicerec = createServiceRecord(endpoint, service);
             logger.debug("registering servicerec");
             sls.postRecord(servicerec, function(err, _rec) {
