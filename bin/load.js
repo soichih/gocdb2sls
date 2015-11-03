@@ -117,14 +117,21 @@ function setLocationFields(rec, endpoint) {
 function createServiceRecord(endpoint, service) {
     var info = endpoint._info;
     var hostrec = endpoint._hostrec;
-    var rec = {
-        //"gocdb-key": endpoint.$.PRIMARY_KEY+"."+service.name,
-        "type": [ "service" ],
-        "service-name": [ endpoint.HOSTNAME[0] + " "+service.name ], //I use this as a key for service record.. must not change
-        "service-type": [ service.name ],
-        "group-communities": info.communities || info.keywords || [], //[ "OSG" ],
-        "service-host": [ endpoint._hostrec.uri ], 
-    };
+    var rec = {};
+
+    rec["type"] =  [ "service" ];
+    rec["service-name"] = [ endpoint.HOSTNAME[0] + " "+service.name ]; 
+    rec["service-type"] = [ service.name ];
+    rec["group-communities"] = info.communities || info.keywords || []; //[ "OSG" ],
+    rec["service-host"] = [ endpoint._hostrec.uri ];
+    
+    //in sLS, "esmond" service is registered as "ma" (there is no "esmond" service in sLS)
+    if(service.name == "esmond") {
+        rec["service-name"] =  [ endpoint.HOSTNAME[0] + " Measurement Archive" ];
+        rec["service-type"] = [ "ma" ];
+        rec["service-version"] = [ service.version ]; //a esmond specific field..
+    }
+
 
     //TODO - for now, I am just picking the last entry.. but I don't know what's the best way
     /* addresses: [
@@ -136,9 +143,10 @@ function createServiceRecord(endpoint, service) {
     * "tcp://perfsonar-bw.cern.ch:3001"
     * ],
     */
-    if(service.addresses && service.addresses.length > 0) rec["service-locator"] = [ service.addresses[service.addresses.length-1] ];
-    else {
-        //michael says addresses isn't really reliable.. using HOSTNAME/daemon_port
+    if(service.addresses && service.addresses.length > 0) {
+        rec["service-locator"] = [ service.addresses[service.addresses.length-1] ];
+    } else {
+        //michael says addresses is going away(?) .. use HOSTNAME/daemon_port if not set
         rec["service-locator"] = "tcp://"+endpoint.HOSTNAME;
         if(service.daemon_port) rec["service-locator"] +=":"+service.daemon_port;
     }
@@ -170,6 +178,9 @@ function createServiceRecord(endpoint, service) {
         break;
     case "ndt":
         rec["psservice-eventtypes"] = [ "http://ggf.org/ns/nmwg/tools/ndt/1.0" ];
+        break;
+    case "esmond":
+        rec["psservice-eventtypes"] = [ ]; //global instance leaves this empty... just following an example
         break;
     }
     
@@ -215,12 +226,36 @@ function processEndpoint(endpoint, cb) {
     });
 
     tasks.push(function(done) {
-        //register serivce in parallel
+        //register all serivces in 10-way parallel
         async.eachLimit(endpoint._info.services, 10, function(service, next) {
-            if(!service.is_running) return next(null);
+            if(service.is_running == "disabled") return next(null);
+            if(service.enabled == "0") return next(null);
             if(service.name == "regular_testing") return next(null); //don't need to register regular_testing service
             var servicerec = createServiceRecord(endpoint, service);
             logger.debug("registering servicerec");
+            sls.postRecord(servicerec, function(err, _rec) {
+                if(err && err != "403") logger.error(err); //continue
+                if(_rec) logger.info("service uuid:"+_rec["client-uuid"]+" registered: "+_rec.uri);
+                next(null);
+            });
+        }, done);
+    }); 
+
+    //pretend bwctl as a traceroute service
+    //TODO - once traceroute services are registered in GOCDB as first class item, I need to remove this
+    tasks.push(function(done) {
+        //register all serivces in 10-way parallel
+        async.eachLimit(endpoint._info.services, 10, function(service, next) {
+            if(service.is_running == "disabled") return next(null);
+            if(service.enabled == "0") return next(null);
+            if(service.name != "bwctl") return next(null); 
+
+            //fake some stuff
+            service.name = "traceroute"; 
+            service.addresses = [ endpoint._info.external_address.ipv4_address ];
+
+            var servicerec = createServiceRecord(endpoint, service);
+            logger.debug("registering fake traceroute service rec");
             sls.postRecord(servicerec, function(err, _rec) {
                 if(err && err != "403") logger.error(err); //continue
                 if(_rec) logger.info("service uuid:"+_rec["client-uuid"]+" registered: "+_rec.uri);

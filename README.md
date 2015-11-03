@@ -92,7 +92,7 @@ exports.sls = {
     url: "http://localhost:8090",
 
     //Global sLS instance to check against host record
-    global_url: "http://ps-east.es.net:8090",
+    //global_url: "http://ps-east.es.net:8090",
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
