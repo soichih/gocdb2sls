@@ -6,7 +6,6 @@ var fs = require('fs');
 
 //contrib
 var winston = require('winston');
-var request = require('request');
 var async = require('async');
 var xml2js = require('xml2js');
 
@@ -240,8 +239,8 @@ function processEndpoint(endpoint, cb) {
             });
         }, done);
     }); 
-
-    //pretend bwctl as a traceroute service
+    
+    //pretend bwctl as a various other service
     //TODO - once traceroute services are registered in GOCDB as first class item, I need to remove this
     tasks.push(function(done) {
         //register all serivces in 10-way parallel
@@ -251,16 +250,18 @@ function processEndpoint(endpoint, cb) {
             if(service.name != "bwctl") return next(null); 
 
             //fake some stuff
-            service.name = "traceroute"; 
-            service.addresses = [ endpoint._info.external_address.ipv4_address ];
+            async.each(["traceroute", "ping"], function(name, next_service) {
+                service.name = name;
+                service.addresses = [ endpoint._info.external_address.ipv4_address ];
 
-            var servicerec = createServiceRecord(endpoint, service);
-            logger.debug("registering fake traceroute service rec");
-            sls.postRecord(servicerec, function(err, _rec) {
-                if(err && err != "403") logger.error(err); //continue
-                if(_rec) logger.info("service uuid:"+_rec["client-uuid"]+" registered: "+_rec.uri);
-                next(null);
-            });
+                var servicerec = createServiceRecord(endpoint, service);
+                logger.debug("registering fake service rec:"+name);
+                sls.postRecord(servicerec, function(err, _rec) {
+                    if(err && err != "403") logger.error(err); //continue
+                    if(_rec) logger.info("service uuid:"+_rec["client-uuid"]+" registered: "+_rec.uri);
+                    next_service(null);
+                });
+            }, next);
         }, done);
     }); 
     

@@ -39,12 +39,11 @@ exports.toolkit = {
     //amount of time to attemp loading sonars' /toolkit?format=json
     timeout: 1000*10,
 
-    /* these things doesn't seems to help
+    /* these things doesn't seems to help*/
     //for hosts that force redirect to https:
     rejectUnhauthorized : false, //ignore DEPTH_ZERO_SELF_SIGNED_CERT 
     strictSSL: false, //ignore SELF_SIGNED_CERT_IN_CHAIN
     cert: mycert, key: mykey, ca:gocdbca //use the same key use to contact gocdb .. 
-    */
 }
 
 //configuration for Simple Lookup Serivce to store data

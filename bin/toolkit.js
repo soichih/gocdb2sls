@@ -35,6 +35,7 @@ exports.getInfo = function(endpoint, cb) {
             opts.rejectUnhauthorized = false;
             request.get(opts, function(err, res, json) {
                 if(err) return cb(err);
+                logger.debug("https worked!!! ");
                 parse_json(json, cb);
             }); 
         } else {
