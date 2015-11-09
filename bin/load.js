@@ -63,9 +63,17 @@ function createHostRecord(endpoint) {
 
     //use info.client_uuid or if not available (for <3.5) use GOCDB primary key
     var key = endpoint.$.PRIMARY_KEY;
-    if(info["client-uuid"]) key = info["client-uuid"];
+    if(info["ls_client_uuid"]) {
+        key = info["ls_client_uuid"];
+    } else {
+        logger.warn("ls_client_uuid not set in toolkit info for "+endpoint.HOSTNAME+" -- using GOCDB primary key instead:"+endpoint.$.PRIMARY_KEY);
+        //TODO - when this site gets upgraded and publish client_uuid, then we will have duplicate host entries...
+    }    
+    //
+    //service client-uuid is just host uuid.. to make it unique across different services within a host, add service-type
     rec["client-uuid"] = [ key ];
 
+ 
     return rec;
 }
 
@@ -119,7 +127,8 @@ function createServiceRecord(endpoint, service) {
     var rec = {};
 
     rec["type"] =  [ "service" ];
-    rec["service-name"] = [ endpoint.HOSTNAME[0] + " "+service.name ]; 
+    //rec["service-name"] = [ endpoint.HOSTNAME[0] + " "+service.name ]; 
+    rec["service-name"] = [ endpoint.SITENAME[0] + " "+service.name ]; 
     rec["service-type"] = [ service.name ];
     rec["group-communities"] = info.communities || info.keywords || []; //[ "OSG" ],
     rec["service-host"] = [ endpoint._hostrec.uri ];

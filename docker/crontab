@@ -1,6 +1,6 @@
 #run gocdb2sls
-0 * * * * root cd /gocdb2sls && ./cache.js > /log/gocdb2sls.log
-30 * * * * root cd /gocdb2sls && ./truncate.js && ./load.js > /log/gocdb2sls.log
+0 * * * * root cd /gocdb2sls && ./cache.js > /log/cache.log
+30 * * * * root cd /gocdb2sls && ./truncate.js && ./load.js > /log/reload.log
 
 #remove old gocdb2sls cache (7 days)
 55 0 * * 1 root cd /cache && find -mtime +7 -print -exec /bin/rm {} \;
