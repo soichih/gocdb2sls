@@ -135,7 +135,7 @@ function createServiceRecord(endpoint, service) {
     
     //in sLS, "esmond" service is registered as "ma" (there is no "esmond" service in sLS)
     if(service.name == "esmond") {
-        rec["service-name"] =  [ endpoint.HOSTNAME[0] + " Measurement Archive" ];
+        //rec["service-name"] =  [ endpoint.SITENAME[0] + " ma" ];
         rec["service-type"] = [ "ma" ];
         rec["service-version"] = [ service.version ]; //a esmond specific field..
     }
