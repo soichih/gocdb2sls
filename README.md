@@ -34,7 +34,7 @@ npm install
 
 3) Configure gocdb2sls
 
-Create a file named "config.js" and copy & update following template.
+Update the configuration file under bin/config/index.js
 
 ```
 'use strict';
