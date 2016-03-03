@@ -27,9 +27,11 @@ docker run \
 2) Install gocdb2sls
 
 ```
-yum install node npm
-git clone git@github.com:soichih/gocdb2sls.git
-npm install
+yum install node npm git
+cd /usr/local/ && git clone git@github.com:soichih/gocdb2sls.git
+cd /usr/local/gocdb2sls/bin && npm install
+
+mkdir /usr/local/gocdb2sls-cache
 ```
 
 3) Configure gocdb2sls
@@ -45,7 +47,7 @@ var winston = require('winston');
 //path to your user cert / ca to access gocdb
 var mycert = fs.readFileSync('/usr/local/syncthing/laptop/soichi/ssh/derived/usercert.pem', {encoding: 'ascii'});
 var mykey = fs.readFileSync('/usr/local/syncthing/laptop/soichi/ssh/derived/userkey.pem', {encoding: 'ascii'});
-var gocdbca = fs.readFileSync('/usr/local/syncthing/laptop/soichi/ssh/gocdb_ca.pem', {encoding: 'ascii'});
+var gocdbca = fs.readFileSync(__dirname+'/gocdb_ca.pem', {encoding: 'ascii'});
 
 //gocdb2sls specific config (you need to create this directory and give proper file permission)
 exports.gocdb2sls = {
@@ -76,7 +78,7 @@ exports.endpoint_xmls = [
 
 exports.toolkit = {
     //amount of time to attemp loading sonars' /toolkit?format=json
-    timeout: 1000*10,
+    timeout: 1000*20,
 
     /* these things doesn't seems to help
     //for hosts that force redirect to https:
@@ -175,6 +177,30 @@ GOCDB2SLS_DIR=/somewhere
 55 0 * * * someone cd /usr/local/gocdb2sls-cache && find -mtime +1 -print -exec /bin/rm {} \;
 ```
 
+6) (For MCA users) Point your MCA to use the gocdb-sls instance
+
+You are most likely installing gocdb2sls to be used by MeshConfig Administrator. If so, you can add something like following to your MCA's datasource.js configuration to load data from your sLS instance.
+
+```
+exports.services = {
+    "osg": {
+        label: 'OSG',
+        type: 'global-sls',
+        activehosts_url: 'http://ps1.es.net:8096/lookup/activehosts.json',
+        query: '?type=service&group-communities=OSG',
+        //cache: 1000*60*5, //refresh every 5 minutes (default 30 minutes)
+    },
+
+    "wlcg": {
+        label: 'WLCG',
+        type: 'sls',
+        url: 'http://localhost:8090/lookup/records/?type=service&group-communities=WLCG',
+        cache: 1000*60*5, //refresh every 5 minutes (default 30 minutes)
+        //exclude: [], //TODO - allow user to remove certain service from appearing in the UI
+    },
+};
+```
+
 # TODOs
 
 Until toolkit provides me the uuid for each host, meshconfig admin can't identify back to the same record.. used to configure 
@@ -184,4 +210,6 @@ which method was used, so key value needs to be prefixed by "gocdb:" or "uuid:" 
 
 Right now, endpoint removed in GOCDB will take up to 24 hours (based on cron) to be removed from the sLS - we should update cache.js to 
 automatically remove any endpoint that no longer is registered immediately.
+
+Add logrotate for gocdb2sls.log
 

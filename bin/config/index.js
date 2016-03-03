@@ -6,7 +6,7 @@ var winston = require('winston');
 //path to your user cert / ca to access gocdb
 var mycert = fs.readFileSync('/usr/local/syncthing/laptop/soichi/ssh/derived/usercert.pem', {encoding: 'ascii'});
 var mykey = fs.readFileSync('/usr/local/syncthing/laptop/soichi/ssh/derived/userkey.pem', {encoding: 'ascii'});
-var gocdbca = fs.readFileSync('/usr/local/syncthing/laptop/soichi/ssh/gocdb_ca.pem', {encoding: 'ascii'});
+var gocdbca = fs.readFileSync(__dirname+'/gocdb_ca.pem', {encoding: 'ascii'});
 
 //gocdb2sls specific config
 exports.gocdb2sls = {
