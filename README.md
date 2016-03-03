@@ -36,7 +36,7 @@ mkdir /usr/local/gocdb2sls-cache
 
 3) Configure gocdb2sls
 
-Create a file named "config.js" and copy & update following template.
+Update the configuration file under bin/config/index.js
 
 ```
 'use strict';
@@ -114,28 +114,11 @@ exports.logger = {
                 colorize: true,
                 level: 'debug'
             }),
-
+            /*
             //store all warnings / errors in error.log
             new (winston.transports.File)({
                 filename: 'error.log',
                 level: 'warn'
-            })
-        ]
-    },
-
-    //not used
-    //logfile to store all requests (and its results) in json
-    request: {
-        transports: [
-            new (winston.transports.File)({
-                filename: 'request.log',
-                json: true
-            })
-            /* (not sure how to get this working)
-            new (winston.transports.Logstash)({
-                port: 28777,
-                node_name: 'isdp-soichi-dev',
-                host: 'soichi7.ppa.iu.edu'
             })
             */
         ]
