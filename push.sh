@@ -1,2 +1,2 @@
 
-docker push -f soichih/gocdb2sls
+docker push soichih/gocdb2sls

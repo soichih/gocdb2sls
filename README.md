@@ -29,14 +29,14 @@ docker run \
 ```
 yum install node npm git
 cd /usr/local/ && git clone git@github.com:soichih/gocdb2sls.git
-cd /usr/local/gocdb2sls/bin && npm install
+cd /usr/local/gocdb2sls && npm install
 
 mkdir /usr/local/gocdb2sls-cache
 ```
 
 3) Configure gocdb2sls
 
-Update the configuration file under bin/config/index.js
+Update the configuration file under config/index.js
 
 ```
 'use strict';

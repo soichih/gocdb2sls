@@ -18,8 +18,13 @@ var sls = require('./sls');
 var endpoints_cache_dir = config.gocdb2sls.cache_dir+"/endpoints";
 fs.readdir(endpoints_cache_dir, function(err, files) {
     if(err) throw err;
+
+    logger.info("* 403 means record already exists");
     
     async.eachSeries(files, function(file, next) {
+        
+        //TODO - I should check for file timestamp - and ignore really old cache
+
         logger.info("loading endpoint "+file);
         fs.readFile(endpoints_cache_dir+"/"+file, {encoding: 'utf8'}, function(err, json) {
             var endpoint = JSON.parse(json);
@@ -27,7 +32,7 @@ fs.readdir(endpoints_cache_dir, function(err, files) {
         });
     }, function(err) {
         if(err) throw err;
-        //all done
+        logger.info("all done");
     });
 });
 
@@ -69,11 +74,10 @@ function createHostRecord(endpoint) {
         logger.warn("ls_client_uuid not set in toolkit info for "+endpoint.HOSTNAME+" -- using GOCDB primary key instead:"+endpoint.$.PRIMARY_KEY);
         //TODO - when this site gets upgraded and publish client_uuid, then we will have duplicate host entries...
     }    
-    //
+    
     //service client-uuid is just host uuid.. to make it unique across different services within a host, add service-type
     rec["client-uuid"] = [ key ];
 
- 
     return rec;
 }
 
@@ -91,14 +95,15 @@ function createHostRecord(endpoint) {
  * 
  * */
 function createContactRecord(endpoint) {
+    //console.dir(endpoint);
     var admin = endpoint._info.administrator;
     var rec = {
         "gocdb-key": endpoint.$.PRIMARY_KEY+".admin", //this ensures that we have unique contact records
         "type": [ "person" ],
         //"person-name": [ endpoint.SITENAME[0] + " Administrator" ], //TODO GOCDB doesn't store name for contact.. so I have to fake it
-        "person-name": [ admin.name ], 
+        "person-name": [ admin.name || endpoint._site.SHORT_NAME[0] ], //SHORT_NAME isn't really admin's name but... better than null?
         "person-emails": [
-            admin.email,
+            admin.email||endpoint._site.CONTACT_EMAIL[0] ,
             //endpoint._site.CONTACT_EMAIL[0], //always exists?
             //endpoint._site.CSIRT_EMAIL[0], //always exists?
             //endpoint._site.ALARM_EMAIL[0], //sometimest this exists also
@@ -111,13 +116,23 @@ function createContactRecord(endpoint) {
 function setLocationFields(rec, endpoint) {
     var info = endpoint._info;
     rec["location-sitename"] = [ endpoint.SITENAME[0] ]; //this needs to be just SITENAME so that sls.getContactRecord can match it
+    //prepare backup info
+    var alt_long = null;
+    if(endpoint._site.LONGITUDE) alt_long = endpoint._site.LONGITUDE[0];
+    var alt_lat = null;
+    if(endpoint._site.LATITUDE) alt_lat = endpoint._site.LATITUDE[0];
+    var alt_timezone = null;
+    if(endpoint._site.TIMEZONE) alt_timezone = endpoint._site.TIMEZONE[0];
+    var alt_country = null;
+    if(endpoint._site.COUNTRY) alt_country = endpoint._site.COUNTRY[0];
+
     if(info.location) {
-        rec["location-longitude"] = [ info.location.longitude ];
-        rec["location-latitude"] = [ info.location.latitude ];
-        rec["location-city"] = [ info.location.city ];
+        rec["location-longitude"] = [ info.location.longitude || alt_long ];
+        rec["location-latitude"] = [ info.location.latitude || alt_lat ];
+        rec["location-city"] = [ info.location.city || alt_timezone ]; //TODO no choice?
         rec["location-state"] = [ info.location.state ];
         rec["location-code"] = [ info.location.zipcode ];
-        rec["location-country"] = [ info.location.country ];
+        rec["location-country"] = [ info.location.country || alt_country ];
     } else logger.debug("location info not found for endpoint:"+endpoint.HOSTNAME[0]);
 }
 
@@ -139,7 +154,6 @@ function createServiceRecord(endpoint, service) {
         rec["service-type"] = [ "ma" ];
         rec["service-version"] = [ service.version ]; //a esmond specific field..
     }
-
 
     //TODO - for now, I am just picking the last entry.. but I don't know what's the best way
     /* addresses: [
@@ -166,7 +180,8 @@ function createServiceRecord(endpoint, service) {
     switch(service.name) {
     case "bwctl":
         var tools = [];
-        service.testing_ports.forEach(function(port) {
+        //TODO is this really needed?
+        if(service.testing_ports) service.testing_ports.forEach(function(port) {
             tools.push(port.type);
         });
         rec["psservice-eventtypes"] = [ "http://ggf.org/ns/nmwg/tools/bwctl/1.0" ];
@@ -215,7 +230,7 @@ function processEndpoint(endpoint, cb) {
         var contactrec = createContactRecord(endpoint);        
         logger.debug("registering contactrec");
         sls.postRecord(contactrec, function(err, _rec) {
-            if(err) cb(err);
+            if(err) return done(err);
             logger.info("contact: "+_rec["person-emails"]+" registered: "+_rec.uri);
             endpoint._contactrec = _rec;
             done(null);
@@ -226,7 +241,7 @@ function processEndpoint(endpoint, cb) {
         var hostrec = createHostRecord(endpoint);        
         logger.debug("registering hostrec");
         sls.postRecord(hostrec, function(err, _hostrec) {
-            if(err) cb(err);
+            if(err) return done(err);
             logger.info("host uuid:"+_hostrec["client-uuid"]+" registered: "+_hostrec.uri);
             endpoint._hostrec = _hostrec;
             done(null);

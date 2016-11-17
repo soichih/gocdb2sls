@@ -1,3 +1,4 @@
 config/index.js
+config/*.pem
 node_modules
 debug

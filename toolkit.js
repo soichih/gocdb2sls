@@ -25,12 +25,12 @@ exports.getInfo = function(endpoint, cb) {
     var toolkit_url_s = 'https://'+endpoint.HOSTNAME[0]+'/toolkit?format=json';
 
     //load toolkit info
-    logger.info("loading toolkit info: "+toolkit_url); 
+    logger.info("loading toolkit info: "+toolkit_url+" "+endpoint.$.PRIMARY_KEY); 
     var opts = Object.create(config.toolkit);
     opts.url = toolkit_url;
     request.get(opts, function(err, res, json) {
         if(err) {
-            logger.info("failed to access it.. trying "+toolkit_url_s);
+            logger.info("failed to access it.. trying https:");
             opts.url = toolkit_url_s;
             opts.rejectUnhauthorized = false;
             request.get(opts, function(err, res, json) {

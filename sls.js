@@ -55,6 +55,8 @@ exports.getServiceRecord = function(key, cb) {
 
 exports.postRecord = function(rec, cb) {
     var url = config.sls.url+'/lookup/records';
+    //logger.debug("post:"+url);
+    //console.dir(rec);
     request.post({
         url: url,
         json: rec,

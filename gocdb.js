@@ -24,7 +24,7 @@ function loadSites(cb) {
                 var name = site.$.PRIMARY_KEY;
                 gocdb_sites[name] = site;
             });
-            cb(null);
+            cb(null, sites);
         });
     });
 }
