@@ -142,7 +142,6 @@ function createServiceRecord(endpoint, service) {
     var rec = {};
 
     rec["type"] =  [ "service" ];
-    //rec["service-name"] = [ endpoint.HOSTNAME[0] + " "+service.name ]; 
     rec["service-name"] = [ endpoint.SITENAME[0] + " "+service.name ]; 
     rec["service-type"] = [ service.name ];
     rec["group-communities"] = info.communities || info.keywords || []; //[ "OSG" ],
@@ -276,7 +275,7 @@ function processEndpoint(endpoint, cb) {
             //fake some stuff
             async.each(["traceroute", "ping"], function(name, next_service) {
                 service.name = name;
-                service.addresses = [ endpoint._info.external_address.ipv4_address ];
+                service.addresses = [ endpoint._info.external_address.ipv4_address ]; //TODO why ipv4?
 
                 var servicerec = createServiceRecord(endpoint, service);
                 logger.debug("registering fake service rec:"+name);

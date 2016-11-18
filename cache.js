@@ -9,6 +9,7 @@ var winston = require('winston');
 var request = require('request');
 var async = require('async');
 var xml2js = require('xml2js');
+var dns = require('dns');
 
 //mine
 var config = require('./config');
@@ -82,18 +83,41 @@ function processEndpointXML(endpoint_xml, cb) {
 }
 
 //if we can't reach the toolkit, let's create minimal info so that we can still register to sLS
-function simulateInfo(endpoint) {
-    var service_name = null;
-    if(endpoint.SERVICE_TYPE == "net.perfSONAR.Bandwidth") service_name = "bwctl";
-    if(endpoint.SERVICE_TYPE == "net.perfSONAR.Latency") service_name = "owamp"; 
-    if(endpoint.SERVICE_TYPE == "net.perfSONAR.Traceroute") service_name = "traceroute"; //TODO correct?
+function simulateInfo(endpoint, cb) {
+    var service = {
+        is_running: "yes",
+        enabled: "1",
+    };
+    if(endpoint.SERVICE_TYPE == "net.perfSONAR.Bandwidth") {
+        service.name = "bwctl";
+        service.port = "4823";
+    }
+    if(endpoint.SERVICE_TYPE == "net.perfSONAR.Latency") {
+        service.name = "owamp"; 
+        service.port = "861";
+    }
+    if(endpoint.SERVICE_TYPE == "net.perfSONAR.Traceroute") {
+        service.name = "traceroute"; //TODO correct?
+    }
 
     var info = {
         //for host record
         communities: ["WLCG"],
         external_address: {
-            address: endpoint.HOSTNAME,
+            dns_name: endpoint.HOSTNAME[0],
         },
+        /* should look like..
+        "external_address": {
+          "speed": 1000000000,
+          "iface": "eth0",
+          "ipv4_address": "134.158.73.244",
+          "address": "134.158.73.244",
+          "ipv6_address": null,
+          "mtu": 1500,
+          "dns_name": "psonar2.lal.in2p3.fr"
+        },
+
+        */
         //toolkit_rpm_version: "unknown",
 
         //for contact record (let loader pick appropriate fields)
@@ -111,16 +135,21 @@ function simulateInfo(endpoint) {
         },
 
         //for service record
-        services: [
-            {
-                is_running: "yes",
-                enabled: "1",
-                name: service_name,
-            }
-        ],
+        services: [ service ],
     };
 
-    return info;
+    info.external_address.dns_name = endpoint.HOSTNAME[0];
+    dns.lookup(endpoint.HOSTNAME[0], {all: true}, function(err, addresses) {
+        if(err) {
+            logger.error(err);
+            return cb(null, info);
+        }
+        addresses.forEach(function(address) {
+            if(address.family == 4) info.external_address.ipv4_address = address.address;
+            if(address.family == 6) info.external_address.ipv6_address = address.address;
+        });
+        cb(err, info);
+    }); 
 }
 
 function processEndpoint(endpoint, cb) {
@@ -143,18 +172,26 @@ function processEndpoint(endpoint, cb) {
                 } else cb(null);
             });
             */
-            endpoint._info = simulateInfo(endpoint);
-            logger.info("simulaing info");
-            logger.debug(endpoint);
+            simulateInfo(endpoint, function(err, info) {
+                endpoint._info = info;
+                logger.info("simulated info");
+                logger.debug(JSON.stringify(info, null, 4));
+
+                //TODO - instead of just overriding - only override if it's old, or doesn't contain full _info
+                fs.writeFile(cache_path, JSON.stringify(endpoint), function(err) {
+                    if(err) return cb(err);
+                    cb(null);
+                });
+            });
         } else {
             endpoint._info = info;
-            //console.log(JSON.stringify(info, null, 4));
+            //some site doesn't register with WLCG community.. although this is super hacky.. let's do
+            //if(!~info.communities.indexOf("WLCG")) info.communities.push("WLCG");
+            fs.writeFile(cache_path, JSON.stringify(endpoint), function(err) {
+                if(err) return cb(err);
+                cb(null);
+            });
         }
-        //console.dir(endpoint._info);
-        fs.writeFile(cache_path, JSON.stringify(endpoint), function(err) {
-            if(err) return cb(err);
-            cb(null);
-        });
     });
 }
 
