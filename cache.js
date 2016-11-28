@@ -102,7 +102,7 @@ function simulateInfo(endpoint, cb) {
 
     var info = {
         //for host record
-        communities: ["WLCG"],
+        communities: ["WLCG", "simulated-WLCG"],
         external_address: {
             dns_name: endpoint.HOSTNAME[0],
         },
