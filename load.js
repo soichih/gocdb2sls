@@ -54,7 +54,7 @@ function createHostRecord(endpoint) {
         "type": [ "host" ],
 
         "group-communities": info.communities || info.keywords || [] , //[ "OSG" ],
-        "host-name": [ info.external_address.address ], //"perfsonar-bw.grid.iu.edu" ],
+        "host-name": [ info.external_address.dns_name || info.external_address.address ], //"perfsonar-bw.grid.iu.edu" ],
         "pshost-toolkitversion": [ info.toolkit_rpm_version ],
     };
     setLocationFields(rec, endpoint);
