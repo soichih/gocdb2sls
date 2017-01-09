@@ -1,23 +1,15 @@
 FROM centos:7
 MAINTAINER Soichi Hayashi <hayashis@iu.edu>
 
-#RUN yum -y update
-RUN yum -y install epel-release #cronie
-RUN yum -y install npm node
+RUN yum -y install epel-release 
+RUN yum -y install npm node git
 
-RUN mkdir /cache
-
-#ADD docker/crontab /etc/cron.d/gocdb2sls
-#RUN chmod 0644 /etc/cron.d/gocdb2sls
-
-#install app src
-ADD . /gocdb2sls/
+RUN git clone https://github.com/soichih/gocdb2sls.git /gocdb2sls
 WORKDIR /gocdb2sls/
-#RUN npm update
 
-#create the log file to be able to run tail right after it's started
-#RUN touch /var/log/cron.log
+RUN npm install
 
-#this service is based on cron
-#CMD crond && tail -f /var/log/cron.log
+RUN mkdir /usr/local/gocdb2sls-cache
+#it's user's responsibility to setup /gocdb2sls/config
+
 CMD ./docker/start.sh

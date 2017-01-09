@@ -1,30 +1,94 @@
 # GOCDB to Simple Lookup Service Data Loader
 
-This service caches information from GOCDB and each toolkit instances (sonars) and upload information to a private sLS server mimicking the data stored by LS registration service. Once the data is loaded to sLS, it should provide same information as any other sLS server populated by LS registration service.
+This service caches information from GOCDB(xml) and for each toolkit instances it downloads /toolkit json info and uploads it to a private sLS server mimicking the data collected by LS registration service. 
+
+For endpoint that's not reachable from where this service is running, it *guesses* the information that needs to be stored on private sLS.
+
+This service consits of various sub scripts.
+
+## cache.js 
+
+This does the caching of GOCDB XML and toolkit json and stores it to disk
+
+## truncate.js / load.js
+
+This loads the cached information to sLS. sLS needs to be truncated before data can be loaded.
 
 # Installation
 
-1) Install sLS server (and mongoDB)
+1) Install MongoDB and sLS server
 
 Please follow https://github.com/esnet/simple-lookup-service/wiki/LSInstallation
 
-Or.. if you have docker host, the quickest way to get sLS server running is to run following
+Or.. you can use our docker container
 
 ```
 docker run \
-    --name slsdev-mongo \
+    --name sls-mongo \
     -e AUTH=no \
     -d tutum/mongodb
 
 docker run \
-    --name slsdev \
-    --link slsdev-mongo:mongo \
+    --name sls \
+    --link sls-mongo:mongo \
     -v `pwd`/conf:/etc/lookup-service \
     -p 8090:8090 \
     -d soichih/sls
 ```
 
+Here is some sample config files stored on `pwd`/conf
+
+[conf/log4j.properties]
+```
+log4j.rootCategory=DEBUG, LOOKUP
+log4j.appender.LOOKUP=org.apache.log4j.RollingFileAppender
+log4j.appender.LOOKUP.MaxFileSize=10MB
+log4j.appender.LOOKUP.MaxBackupIndex=3
+log4j.appender.LOOKUP.File=/var/log/lookup-service/lookup-service.log
+log4j.appender.LOOKUP.layout=org.apache.log4j.PatternLayout
+log4j.appender.LOOKUP.layout.ConversionPattern=%p %d{ISO8601} %m%n
+log4j.appender.console=org.apache.log4j.ConsoleAppender
+log4j.appender.console.layout=org.apache.log4j.PatternLayout
+log4j.appender.console.layout.ConversionPattern=%5p [%t] (%F:%L) - %m%n
+```
+
+[conf/lookupservice.yaml]
+```
+---
+#Lookup Service settings
+lookupservice:
+    host: '0.0.0.0'
+    port: 8090
+    lease:
+        max: 2592000
+        default: 3600
+        min: 1800
+    coreservice: 'on'
+    cacheservice: 'off'
+
+#Database settings  
+database:
+    DBUrl: 'mongo'
+    DBPort: 27017
+    DBName: 'LookupService'
+    DBCollName: 'services'
+    pruneInterval: 1800
+    pruneThreshold: 120
+```
+
+[confg/queueservice.yaml]
+```
+queue:
+    queueservice: 'off'
+
+message:
+    persistent: false
+    ttl: 120
+```
+
 2) Install gocdb2sls
+
+To install locally
 
 ```
 yum install node npm git
@@ -32,6 +96,18 @@ cd /usr/local/ && git clone git@github.com:soichih/gocdb2sls.git
 cd /usr/local/gocdb2sls && npm install
 
 mkdir /usr/local/gocdb2sls-cache
+```
+
+Or you can install via docker (run this after you create ./config directory - see below)
+
+```
+docker run \
+    --name gocdb2sls \
+    --link sls:sls \
+    -v `pwd`/config:/gocdb2sls/config \
+    -v /usr/local/gocdb2sls-cache:/cache \
+    -v /etc/grid-security/user:/etc/grid-security/user \
+    -d soichih/gocdb2sls
 ```
 
 3) Configure gocdb2sls
@@ -45,20 +121,19 @@ var fs = require('fs');
 var winston = require('winston');
 
 //path to your user cert / ca to access gocdb
-var mycert = fs.readFileSync('/usr/local/syncthing/laptop/soichi/ssh/derived/usercert.pem', {encoding: 'ascii'});
-var mykey = fs.readFileSync('/usr/local/syncthing/laptop/soichi/ssh/derived/userkey.pem', {encoding: 'ascii'});
+var mycert = fs.readFileSync(__dirname+'/usercert.pem', {encoding: 'ascii'});
+var mykey = fs.readFileSync(__dirname+'/userkey.pem', {encoding: 'ascii'});
 var gocdbca = fs.readFileSync(__dirname+'/gocdb_ca.pem', {encoding: 'ascii'});
 
 //gocdb2sls specific config (you need to create this directory and give proper file permission)
 exports.gocdb2sls = {
-    cache_dir: '/usr/local/gocdb2sls-cache' 
+    cache_dir: '/cache' 
 }
 
 //specify options to request xml from GOCDB for site information
 //This information maybe used to augument information from the toolkit itself (but I might not need it..)
 exports.site_xml = {
     url: 'https://goc.egi.eu/gocdbpi/private/?method=get_site', 
-    //url: 'http://soichi7.ppa.iu.edu/public/cache/site.xml',
     cert: mycert, key: mykey, ca: gocdbca
 }
 
@@ -66,12 +141,10 @@ exports.site_xml = {
 exports.endpoint_xmls = [
     {
         url: 'https://goc.egi.eu/gocdbpi/private/?method=get_service_endpoint&service_type=net.perfSONAR.Bandwidth',
-        //url: 'http://soichi7.ppa.iu.edu/public/cache/service_endpoint.xml',
         cert: mycert, key: mykey, ca: gocdbca
     },
     {
         url: 'https://goc.egi.eu/gocdbpi/private/?method=get_service_endpoint&service_type=net.perfSONAR.Latency', 
-        //url: 'http://soichi7.ppa.iu.edu/public/cache/service_endpoint.xml',
         cert: mycert, key: mykey, ca: gocdbca
     }
 ]
@@ -91,7 +164,7 @@ exports.toolkit = {
 //configuration for Simple Lookup Serivce to store data
 exports.sls = {
     //You SLS URL to post records
-    url: "http://localhost:8090",
+    url: "http://sls:8090",
 
     //Global sLS instance to check against host record
     //global_url: "http://ps-east.es.net:8090",
@@ -114,19 +187,12 @@ exports.logger = {
                 colorize: true,
                 level: 'debug'
             }),
-            /*
-            //store all warnings / errors in error.log
-            new (winston.transports.File)({
-                filename: 'error.log',
-                level: 'warn'
-            })
-            */
         ]
     }
 }
 ```
 
-4) Test it
+4) Test it (for non-docker installation)
 
 gocdb2sls works in 2 steps. First step is to cache information from GOCDB and each toolkit instances
 
@@ -145,7 +211,7 @@ Then, truncate & load data to sLS
 
 If everything goes well, you should now be able to view data stored in your sLS server. At URL such as http://localhost:8090/lookup/records
 
-5) Setup cron
+5) Setup cron (for non-docker)
 
 If above step worked, then you should run both steps via cron
 
@@ -185,11 +251,6 @@ exports.services = {
 ```
 
 # TODOs
-
-Until toolkit provides me the uuid for each host, meshconfig admin can't identify back to the same record.. used to configure 
-meshconfig.. for each record type, I will need to implement getKey() function. if gocdb-key is present, it uses it. If uuid is present,
-it uses it.. if that's not present, then maybe use composite of certain fields? During the query phase, however, I need to know
-which method was used, so key value needs to be prefixed by "gocdb:" or "uuid:" or "comp:".. and do lookup on appropriate fields
 
 Right now, endpoint removed in GOCDB will take up to 24 hours (based on cron) to be removed from the sLS - we should update cache.js to 
 automatically remove any endpoint that no longer is registered immediately.

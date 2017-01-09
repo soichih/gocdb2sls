@@ -9,9 +9,9 @@
   "author": "",
   "license": "BSD",
   "dependencies": {
-    "request": "~2.61.0",
-    "xml2js": "~0.4.11",
-    "winston": "~1.0.1",
-    "async": "~1.4.2"
+    "request": "~2.79.0",
+    "xml2js": "~0.4.17",
+    "winston": "~2.3.0",
+    "async": "~2.1.4"
   }
 }
