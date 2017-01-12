@@ -1,14 +1,11 @@
 'use strict';
 
-//contrib
-var request = require('request');
-var xml2js = require('xml2js');
-var winston = require('winston');
-var async = require('async');
+const request = require('request');
+const winston = require('winston');
 
 //mine
-var config = require('./config');
-var logger = new winston.Logger(config.logger.winston);
+const config = require('./config');
+const logger = new winston.Logger(config.logger.winston);
 
 //references
 //https://github.com/esnet/simple-lookup-service/wiki/ClientExamples
@@ -39,24 +36,8 @@ exports.getRecords = function(uri, cb) {
     });
 }
 
-/* no longer used
-exports.getHostRecord = function(key, cb) {
-    exports.getRecord("/lookup/records?type=host&gocdb-key="+key, cb);
-}
-
-exports.getContactRecord = function(key, cb) {
-    exports.getRecord("/lookup/records/?type=person&gocdb-key="+key, cb);
-}
-
-exports.getServiceRecord = function(key, cb) {
-    exports.getRecord("/lookup/records/?type=service&gocdb-key="+key, cb);
-}
-*/
-
 exports.postRecord = function(rec, cb) {
     var url = config.sls.url+'/lookup/records';
-    //logger.debug("post:"+url);
-    //console.dir(rec);
     request.post({
         url: url,
         json: rec,

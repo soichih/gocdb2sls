@@ -4,10 +4,8 @@ do
     echo "removing old cache"
     ( cd /cache && find -mtime +7 -print -exec /bin/rm {} \;)
 
-    echo "running truncate"
+    echo "running truncate and load"
     ./truncate.js
-
-    echo "running load"
     ./load.js
 
     echo "running cache"

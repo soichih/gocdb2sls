@@ -31,7 +31,8 @@ gocdb.loadSites(function(err, sites) {
 
     fs.exists(endpoints_cache_dir, function (exists) {
         if(!exists) fs.mkdirSync(endpoints_cache_dir);
-        async.eachSeries(config.endpoint_xmls, function(endpoint_xml, next) {
+        //load 10 at a time
+        async.eachLimit(config.endpoint_xmls, 10, function(endpoint_xml, next) {
             processEndpointXML(endpoint_xml, function(err) {
                 if(err) logger.error(err); //continue
                 next();
@@ -101,8 +102,12 @@ function simulateInfo(endpoint, cb) {
     }
 
     var info = {
+        ls_client_uuid: endpoint.$.PRIMARY_KEY, //use fake uuid..
+        simulated: true,
+        
         //for host record
-        communities: ["WLCG", "simulated-WLCG"],
+        //communities: ["WLCG", "simulated-WLCG"],
+        communities: ["WLCG"],
         external_address: {
             dns_name: endpoint.HOSTNAME[0],
         },

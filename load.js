@@ -38,7 +38,10 @@ fs.readdir(endpoints_cache_dir, function(err, files) {
 
 function createHostRecord(endpoint) {
     var info = endpoint._info;
+
     var rec = {
+        "client-uuid": [ info.ls_client_uuid ], //always set for >3.4, but it's gocdb primary key for simulated ones
+        
         //"gocdb-key": endpoint.$.PRIMARY_KEY,
         //"host-net-tcp-autotunemaxbuffer-send": [ "33554432 bytes" ],
         //"host-net-tcp-autotunemaxbuffer-recv": [ "33554432 bytes" ],
@@ -62,21 +65,8 @@ function createHostRecord(endpoint) {
     if(info.host_memory) rec["host-hardware-memory"] = [ (info.host_memory*1024)+" MB" ]; //"3830 MB" ],
     if(info.cpus) rec["host-hardware-processorcount"] = [ info.cpus ];
     if(info.cpu_speed) rec["host-hardware-processorspeed"] =  [ info.cpu_speed+" MHz" ];
-    if(endpoint._contactrec) {
-        rec["host-administrators"] =  [ endpoint._contactrec.uri ];
-    }
-
-    //use info.client_uuid or if not available (for <3.5) use GOCDB primary key
-    var key = endpoint.$.PRIMARY_KEY;
-    if(info["ls_client_uuid"]) {
-        key = info["ls_client_uuid"];
-    } else {
-        logger.warn("ls_client_uuid not set in toolkit info for "+endpoint.HOSTNAME+" -- using GOCDB primary key instead:"+endpoint.$.PRIMARY_KEY);
-        //TODO - when this site gets upgraded and publish client_uuid, then we will have duplicate host entries...
-    }    
-    
-    //service client-uuid is just host uuid.. to make it unique across different services within a host, add service-type
-    rec["client-uuid"] = [ key ];
+    if(endpoint._contactrec) rec["host-administrators"] =  [ endpoint._contactrec.uri ];
+    if(info.simulated) rec["simulated"] =  [ "simulated" ];
 
     return rec;
 }
@@ -95,13 +85,15 @@ function createHostRecord(endpoint) {
  * 
  * */
 function createContactRecord(endpoint) {
-    //console.dir(endpoint);
     var admin = endpoint._info.administrator;
     var rec = {
         "gocdb-key": endpoint.$.PRIMARY_KEY+".admin", //this ensures that we have unique contact records
         "type": [ "person" ],
-        //"person-name": [ endpoint.SITENAME[0] + " Administrator" ], //TODO GOCDB doesn't store name for contact.. so I have to fake it
-        "person-name": [ admin.name || endpoint._site.SHORT_NAME[0] ], //SHORT_NAME isn't really admin's name but... better than null?
+
+        //SHORT_NAME isn't really admin's name but... better than null? 
+        //GOCDB doesn't store name for contact.. so I have to fake it
+        "person-name": [ admin.name || endpoint._site.SHORT_NAME[0] ], 
+
         "person-emails": [
             admin.email||endpoint._site.CONTACT_EMAIL[0] ,
             //endpoint._site.CONTACT_EMAIL[0], //always exists?
@@ -140,6 +132,9 @@ function createServiceRecord(endpoint, service) {
     var info = endpoint._info;
     var hostrec = endpoint._hostrec;
     var rec = {};
+    
+    //always set for >3.4, but it's gocdb primary key for simulated ones
+    rec["client-uuid"] = [ info.ls_client_uuid ]; 
 
     rec["type"] =  [ "service" ];
     rec["service-name"] = [ endpoint.SITENAME[0] + " "+service.name ]; 
@@ -171,7 +166,7 @@ function createServiceRecord(endpoint, service) {
         rec["service-locator"] = "tcp://"+endpoint.HOSTNAME;
         if(service.daemon_port) rec["service-locator"] +=":"+service.daemon_port;
     }
-    
+
     if(endpoint._contactrec) {
         rec["service-administrators"] =  [ endpoint._contactrec.uri ];
     }
@@ -205,18 +200,6 @@ function createServiceRecord(endpoint, service) {
         rec["psservice-eventtypes"] = [ ]; //global instance leaves this empty... just following an example
         break;
     }
-    
-    //use info.client_uuid or if not available (for <3.5) use GOCDB primary key
-    var key = endpoint.$.PRIMARY_KEY;
-    if(info["ls_client_uuid"]) {
-        key = info["ls_client_uuid"];
-    } else {
-        logger.warn("ls_client_uuid not set in toolkit info for "+endpoint.HOSTNAME+" -- using GOCDB primary key instead:"+endpoint.$.PRIMARY_KEY);
-        //TODO - when this site gets upgraded and publish client_uuid, then we will have duplicate host entries...
-    }    
-    //
-    //service client-uuid is just host uuid.. to make it unique across different services within a host, add service-type
-    rec["client-uuid"] = [ key ];
 
     setLocationFields(rec, endpoint);
     return rec;
