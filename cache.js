@@ -1,26 +1,21 @@
 #!/usr/bin/node
 'use strict';
 
-//node
-var fs = require('fs');
+const fs = require('fs');
+const winston = require('winston');
+const request = require('request');
+const async = require('async');
+const xml2js = require('xml2js');
+const dns = require('dns');
 
-//contrib
-var winston = require('winston');
-var request = require('request');
-var async = require('async');
-var xml2js = require('xml2js');
-var dns = require('dns');
+const config = require('./config');
+const logger = new winston.Logger(config.logger.winston);
+const gocdb = require('./gocdb');
+const toolkit = require('./toolkit');
+const sls = require('./sls');
 
-//mine
-var config = require('./config');
-var logger = new winston.Logger(config.logger.winston);
-var gocdb = require('./gocdb');
-var toolkit = require('./toolkit');
-var sls = require('./sls');
-
-//globals
-var parser = new xml2js.Parser();
-var endpoints_cache_dir = config.gocdb2sls.cache_dir+"/endpoints";
+const parser = new xml2js.Parser();
+const endpoints_cache_dir = config.gocdb2sls.cache_dir+"/endpoints";
 
 //starts here
 gocdb.loadSites(function(err, sites) {
@@ -31,8 +26,7 @@ gocdb.loadSites(function(err, sites) {
 
     fs.exists(endpoints_cache_dir, function (exists) {
         if(!exists) fs.mkdirSync(endpoints_cache_dir);
-        //load 10 at a time
-        async.eachLimit(config.endpoint_xmls, 10, function(endpoint_xml, next) {
+        async.eachSeries(config.endpoint_xmls, function(endpoint_xml, next) {
             processEndpointXML(endpoint_xml, function(err) {
                 if(err) logger.error(err); //continue
                 next();
@@ -62,21 +56,18 @@ function processEndpointXML(endpoint_xml, cb) {
                 return cb(null);
             }
 
-            var failed = 0;
-            async.eachSeries(endpoints.results.SERVICE_ENDPOINT, function(endpoint, next) {
+            async.eachLimit(endpoints.results.SERVICE_ENDPOINT, 10, function(endpoint, next) {
                 var key = endpoint.$.PRIMARY_KEY;
                 processEndpoint(endpoint, function(err) {
                     if(err) {
-                        //continue to next endpoint
                         logger.error(err); 
-                        failed++;
+                        //continue to next endpoint
                     }
                     next(null);
                 });
             }, function(err) {
                 if(err) return cb(err);    
                 logger.info("Processed "+endpoints.results.SERVICE_ENDPOINT.length+ " endpoints");
-                logger.info("Failed "+failed+" endpoints");
                 cb(null);
             });
         });
@@ -101,6 +92,17 @@ function simulateInfo(endpoint, cb) {
         service.name = "traceroute"; //TODO correct?
     }
 
+    //let's assume all host is running ma.. (TODO - http or https?)
+    var ma = {
+        "is_running": "yes",
+        "addresses": [
+            "http://"+endpoint.HOSTNAME[0]+"/esmond/perfsonar/archive/"
+        ],
+        //"version": "2.0.2-3.el6",
+        "name": "esmond",
+        "enabled": "1"
+    };
+
     var info = {
         ls_client_uuid: endpoint.$.PRIMARY_KEY, //use fake uuid..
         simulated: true,
@@ -111,19 +113,6 @@ function simulateInfo(endpoint, cb) {
         external_address: {
             dns_name: endpoint.HOSTNAME[0],
         },
-        /* should look like..
-        "external_address": {
-          "speed": 1000000000,
-          "iface": "eth0",
-          "ipv4_address": "134.158.73.244",
-          "address": "134.158.73.244",
-          "ipv6_address": null,
-          "mtu": 1500,
-          "dns_name": "psonar2.lal.in2p3.fr"
-        },
-
-        */
-        //toolkit_rpm_version: "unknown",
 
         //for contact record (let loader pick appropriate fields)
         administrator: {
@@ -140,7 +129,7 @@ function simulateInfo(endpoint, cb) {
         },
 
         //for service record
-        services: [ service ],
+        services: [ service, ma ],
     };
 
     info.external_address.dns_name = endpoint.HOSTNAME[0];
@@ -163,26 +152,12 @@ function processEndpoint(endpoint, cb) {
         var cache_path = endpoints_cache_dir+"/"+endpoint.$.PRIMARY_KEY;
         if(err) {
             logger.error(err); 
-            //continue..
-            //TODO - maybe *guess* some key _info?
-            /*
-            //overwrite if it's not cached yet
-            fs.access(cache_path, fs.constants.F_OK, function(err) {
-                if(err) {
-                    logger.info("storing endpoint without toolkit info.. since we haven't seen this.");
-                    fs.writeFile(cache_path, JSON.stringify(endpoint), function(err) {
-                        if(err) return cb(err);
-                        cb(null);
-                    });
-                } else cb(null);
-            });
-            */
+            logger.error("using simulated info");
             simulateInfo(endpoint, function(err, info) {
                 endpoint._info = info;
-                logger.info("simulated info");
-                logger.debug(JSON.stringify(info, null, 4));
+                //logger.debug(JSON.stringify(info, null, 4));
 
-                //TODO - instead of just overriding - only override if it's old, or doesn't contain full _info
+                //TODO - instead of just overriding - only override if it's old, or doesn't contain full _info?
                 fs.writeFile(cache_path, JSON.stringify(endpoint), function(err) {
                     if(err) return cb(err);
                     cb(null);
@@ -199,4 +174,3 @@ function processEndpoint(endpoint, cb) {
         }
     });
 }
-

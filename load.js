@@ -38,35 +38,20 @@ fs.readdir(endpoints_cache_dir, function(err, files) {
 
 function createHostRecord(endpoint) {
     var info = endpoint._info;
-
     var rec = {
-        "client-uuid": [ info.ls_client_uuid ], //always set for >3.4, but it's gocdb primary key for simulated ones
-        
-        //"gocdb-key": endpoint.$.PRIMARY_KEY,
-        //"host-net-tcp-autotunemaxbuffer-send": [ "33554432 bytes" ],
-        //"host-net-tcp-autotunemaxbuffer-recv": [ "33554432 bytes" ],
-        //"host-net-tcp-congestionalgorithm": [ "reno" ],
-        //"host-net-tcp-maxbuffer-send": [ "67108864 bytes" ],
-        //"host-net-tcp-maxbuffer-recv": [ "67108864 bytes" ],
-        //"host-os-kernel": [ "Linux 2.6.32-573.3.1.el6.web100.x86_64" ],
-        //rec["host-os-name"] = : [ "CentOS" ],
-        
-        //"host-administrators": [ "lookup/person/82f61224-5de1-41dd-8882-2f192e9db93d" ],
-        //"host-net-interfaces": [ "lookup/interface/e86f44c2-6fa5-4ab3-a0d3-ce1df048ac56" ]
-
         "type": [ "host" ],
-
         "group-communities": info.communities || info.keywords || [] , //[ "OSG" ],
+        "client-uuid": [ info.ls_client_uuid ], //always set for >3.4, but it's gocdb primary key for simulated ones
         "host-name": [ info.external_address.dns_name || info.external_address.address ], //"perfsonar-bw.grid.iu.edu" ],
-        "pshost-toolkitversion": [ info.toolkit_rpm_version ],
     };
     setLocationFields(rec, endpoint);
+    if(info.toolkit_rpm_version) rec["pshost-toolkitversion"] =  [ info.toolkit_rpm_version ];
     if(info.distribution) rec["host-os-version"] =  [ info.distribution ];
     if(info.host_memory) rec["host-hardware-memory"] = [ (info.host_memory*1024)+" MB" ]; //"3830 MB" ],
     if(info.cpus) rec["host-hardware-processorcount"] = [ info.cpus ];
     if(info.cpu_speed) rec["host-hardware-processorspeed"] =  [ info.cpu_speed+" MHz" ];
     if(endpoint._contactrec) rec["host-administrators"] =  [ endpoint._contactrec.uri ];
-    if(info.simulated) rec["simulated"] =  [ "simulated" ];
+    if(info.simulated) rec["simulated"] =  [ "true" ];
 
     return rec;
 }

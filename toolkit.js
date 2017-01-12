@@ -35,12 +35,15 @@ exports.getInfo = function(endpoint, cb) {
             opts.rejectUnhauthorized = false;
             request.get(opts, function(err, res, json) {
                 if(err) return cb(err);
+                if(res.statusCode != 200) return cb(res.statusCode);
                 logger.debug("https worked!!! ");
                 parse_json(json, cb);
             }); 
-        } else {
-            parse_json(json, cb);
+            return;
         }
+
+        if(res.statusCode != 200) return cb(res.statusCode);
+        parse_json(json, cb);
     });
 }
 
