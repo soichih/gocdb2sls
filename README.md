@@ -24,13 +24,15 @@ Or.. you can use our docker container
 
 ```
 docker run \
-    --name sls-mongo \
-    -e AUTH=no \
-    -d tutum/mongodb
+    --restart=always \
+    --net mca \
+    --name mongo \
+    -d mongo
 
 docker run \
+    --restart=always \
+    --net mca \
     --name sls \
-    --link sls-mongo:mongo \
     -v `pwd`/conf:/etc/lookup-service \
     -p 8090:8090 \
     -d soichih/sls
@@ -102,9 +104,10 @@ Or you can install via docker (run this after you create ./config directory - se
 
 ```
 docker run \
+    --restart=always \
     --name gocdb2sls \
-    --link sls:sls \
-    -v `pwd`/config:/gocdb2sls/config \
+    --net mca \
+    -v `pwd`/config:/app/config \
     -v /usr/local/gocdb2sls-cache:/cache \
     -v /etc/grid-security/user:/etc/grid-security/user \
     -d soichih/gocdb2sls
