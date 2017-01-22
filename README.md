@@ -6,41 +6,26 @@ For endpoint that's not reachable from where this service is running, it *guesse
 
 This service consits of various sub scripts.
 
-## cache.js 
+`cache.js`
 
 This does the caching of GOCDB XML and toolkit json and stores it to disk
 
-## truncate.js / load.js
+`truncate.js / load.js`
 
 This loads the cached information to sLS. sLS needs to be truncated before data can be loaded.
 
-# Installation
+## Configuration
 
-1) Install MongoDB and sLS server
+Before we start installing gocdb2sls, prepare configuration files under /etc/lookup-service
 
-Please follow https://github.com/esnet/simple-lookup-service/wiki/LSInstallation
+### Simple Lookup Service Configuration
 
-Or.. you can use our docker container
-
-```
-docker run \
-    --restart=always \
-    --net mca \
-    --name mongo \
-    -d mongo
-
-docker run \
-    --restart=always \
-    --net mca \
-    --name sls \
-    -v `pwd`/conf:/etc/lookup-service \
-    -p 8090:8090 \
-    -d soichih/sls
+```bash
+mkdir -p /etc/gocdb2sls/sls
 ```
 
-Here is some sample config files stored on `pwd`/conf
+`/etc/gocdb2sls/sls/log4j.properties`
 
-[conf/log4j.properties]
 ```
 log4j.rootCategory=DEBUG, LOOKUP
 log4j.appender.LOOKUP=org.apache.log4j.RollingFileAppender
@@ -54,7 +39,8 @@ log4j.appender.console.layout=org.apache.log4j.PatternLayout
 log4j.appender.console.layout.ConversionPattern=%5p [%t] (%F:%L) - %m%n
 ```
 
-[conf/lookupservice.yaml]
+`/etc/gocdb2sls/sls/lookupservice.yaml`
+
 ```
 ---
 #Lookup Service settings
@@ -78,7 +64,8 @@ database:
     pruneThreshold: 120
 ```
 
-[confg/queueservice.yaml]
+`/etc/gocdb2sls/sls/queueservice.yaml`
+
 ```
 queue:
     queueservice: 'off'
@@ -88,45 +75,42 @@ message:
     ttl: 120
 ```
 
-2) Install gocdb2sls
+Please see https://github.com/esnet/simple-lookup-service/wiki/LSInstallation for more information
 
-To install locally
+### GOCDB2SLS Configuration
 
-```
-yum install node npm git
-cd /usr/local/ && git clone git@github.com:soichih/gocdb2sls.git
-cd /usr/local/gocdb2sls && npm install
+`/etc/gocdb2sls/index.js`
 
-mkdir /usr/local/gocdb2sls-cache
-```
-
-Or you can install via docker (run this after you create ./config directory - see below)
-
-```
-docker run \
-    --restart=always \
-    --name gocdb2sls \
-    --net mca \
-    -v `pwd`/config:/app/config \
-    -v /usr/local/gocdb2sls-cache:/cache \
-    -v /etc/grid-security/user:/etc/grid-security/user \
-    -d soichih/gocdb2sls
-```
-
-3) Configure gocdb2sls
-
-Update the configuration file under config/index.js
-
-```
+```javascript
 'use strict';
 
 var fs = require('fs');
 var winston = require('winston');
 
 //path to your user cert / ca to access gocdb
-var mycert = fs.readFileSync(__dirname+'/usercert.pem', {encoding: 'ascii'});
-var mykey = fs.readFileSync(__dirname+'/userkey.pem', {encoding: 'ascii'});
-var gocdbca = fs.readFileSync(__dirname+'/gocdb_ca.pem', {encoding: 'ascii'});
+var mycert = fs.readFileSync('/etc/grid-security/user/cert.pem', {encoding: 'ascii'});
+var mykey = fs.readFileSync('/etc/grid-security/user/key.pem', {encoding: 'ascii'});
+var gocdbca = `-----BEGIN CERTIFICATE-----
+MIIDhjCCAm6gAwIBAgIBADANBgkqhkiG9w0BAQUFADBUMQswCQYDVQQGEwJVSzEV
+MBMGA1UEChMMZVNjaWVuY2VSb290MRIwEAYDVQQLEwlBdXRob3JpdHkxGjAYBgNV
+BAMTEVVLIGUtU2NpZW5jZSBSb290MB4XDTA3MTAzMDA5MDAwMFoXDTI3MTAzMDA5
+MDAwMFowVDELMAkGA1UEBhMCVUsxFTATBgNVBAoTDGVTY2llbmNlUm9vdDESMBAG
+A1UECxMJQXV0aG9yaXR5MRowGAYDVQQDExFVSyBlLVNjaWVuY2UgUm9vdDCCASIw
+DQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAM3ORtmmUHotwDTfAH5/eIlo3+BK
+oElDeaeN5Sg2lhPu0laPch7pHKSzlqyHmZGsk3fZb8hBmO0lD49+dKnA31zLU6ko
+Bje1THqdrGZPcjTm0lhc/SjzsBtWm4oC/bpYBACliB9wa3eSuU4Rqq71n7+4J+WO
+KvaDHvaTdRYE3pyie2Xe5QTI8CXedCMh18+EdFvwlV79dlmNRNY93ZWUu6POL6d+
+LapQkUmasXLjyjNzcoPXgDyGauHOqmyqxuPx4tDTsC25nKr+7K5k3T+lplJ/jMkQ
+l/QHgqnABBXQILzzrt0a8nQdM8ONA+bht+8sy4eN/0zMulNj8kAzrutkhJsCAwEA
+AaNjMGEwDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8BAf8EBAMCAQYwHQYDVR0OBBYE
+FF74G0imd2spPC4AUzMrY6J7fpPAMB8GA1UdIwQYMBaAFF74G0imd2spPC4AUzMr
+Y6J7fpPAMA0GCSqGSIb3DQEBBQUAA4IBAQCT0a0kcE8oVYzjTGrd5ayvOI+vbdiY
+MG7/2V2cILKIts7DNdIrEIonlV0Cw96pQShjRRIizSHG5eH1kLJcbK/DpgX6QuPR
+WhWR5wDJ4vaz0qTmUpwEpsT9mmyehhHbio/EsYM7LesScJrO2piD2Bf6pFUMR1LC
+scAqN7fTXJSg6Mj6tOhpWpPwM9WSwQn8sDTgL0KkrjVOVaeJwlyNyEfUpJuFIgTl
+rEnkXqhWQ6ozArDonB4VHlew6eqIGaxWB/yWMNvY5K+b1j5fdcMelzA45bFucOf1
+Ag+odBgsGZahpFgOqKvBuvSrk/8+ie8I2CVYwT486pPnb5JFgHgUfZo8
+-----END CERTIFICATE-----`;
 
 //gocdb2sls specific config (you need to create this directory and give proper file permission)
 exports.gocdb2sls = {
@@ -173,11 +157,6 @@ exports.sls = {
     //global_url: "http://ps-east.es.net:8090",
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//
-// Logging
-//
-
 exports.logger = {
     winston: {
         transports: [
@@ -194,6 +173,48 @@ exports.logger = {
     }
 }
 ```
+
+## Installation
+
+0. First of all, you need to install docker. Please refer to [docker installation doc](https://docs.docker.com/engine/installation/) to install the latest docker engine.
+
+    Then, make sure to create a network to place all of gocdb2sls (and mca) containers.
+
+    ```bash
+    docker network create mca
+    ```
+
+1. Install MongoDB and sLS server
+
+    ```bash
+    docker run \
+        --restart=always \
+        --net mca \
+        --name sls-mongo \
+        -d mongo
+
+    docker run \
+        --restart=always \
+        --net mca \
+        --name sls \
+        -v /etc/gocdb2sls/sls:/etc/lookup-service \
+        -d soichih/sls
+    ```
+
+    You shouldn't have to persist the DB content of sls-mongo, since it's mostly used as a cache.
+
+2. Install gocdb2sls
+
+    ```bash
+    docker run \
+        --restart=always \
+        --name gocdb2sls \
+        --net mca \
+        -v /etc/gocdb2sls:/app/config \
+        -v /usr/local/gocdb2sls-cache:/cache \
+        -v /etc/grid-security/user:/etc/grid-security/user \
+        -d soichih/gocdb2sls
+    ```
 
 4) Test it (for non-docker installation)
 
@@ -253,7 +274,21 @@ exports.services = {
 };
 ```
 
-# TODOs
+## Update Containers
+
+To update your container to the latest version, do
+
+```bash
+docker pull soichih/sls
+docker restart sls
+```
+
+```bash
+docker pull soichih/gocdb2sls
+docker restart gocdb2sls
+```
+
+## TODOs
 
 Right now, endpoint removed in GOCDB will take up to 24 hours (based on cron) to be removed from the sLS - we should update cache.js to 
 automatically remove any endpoint that no longer is registered immediately.
